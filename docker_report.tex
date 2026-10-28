@@ -145,7 +145,7 @@ FROM nginx:alpine
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/nginx.conf
 HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://127.0.0.1/health || exit 1
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 \end{lstlisting}
@@ -160,6 +160,7 @@ http {
 
     server {
         listen 80;
+        listen [::]:80;
         server_name localhost;
 
         location / {
@@ -333,6 +334,13 @@ This eliminated \texttt{apt-get} completely, reducing build time from 95 seconds
         \item \emph{Symptom:} Requests submitted to the container were processed, but \texttt{docker compose logs} displayed no diagnostic output from Python until container termination.
         \item \emph{Root Cause:} Python standard I/O streams default to block buffering when not attached to an interactive terminal (TTY).
         \item \emph{Resolution:} Set \texttt{PYTHONUNBUFFERED=1} in both \texttt{Dockerfile.api} and \texttt{docker-compose.yml}, enforcing immediate flushing of all logging statements to Docker's JSON-file logging driver.
+    \end{itemize}
+
+    \item \textbf{Error: Alpine Linux IPv6 Healthcheck Connection Refusal}
+    \begin{itemize}
+        \item \emph{Symptom:} The \texttt{proximity-proxy} container intermittently transitioned to an \texttt{unhealthy} status despite Nginx actively serving external HTTP requests.
+        \item \emph{Root Cause:} Inside the Alpine Linux user space, \texttt{localhost} preferentially resolves to IPv6 loopback \texttt{::1}. Because Nginx was solely bound to IPv4 (\texttt{listen 80;}), internal probe requests by \texttt{wget --spider http://localhost/health} attempted connection on IPv6 and failed with connection refusal.
+        \item \emph{Resolution:} Configured Nginx for dual-stack socket binding with \texttt{listen [::]:80;} alongside IPv4 \texttt{listen 80;}, and hardened the container healthcheck probe in \texttt{Dockerfile.proxy} to explicitly query the IPv4 loopback address (\texttt{http://127.0.0.1/health}).
     \end{itemize}
 \end{enumerate}
 
