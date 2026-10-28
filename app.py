@@ -107,10 +107,27 @@ def build_graph(link_text):
         if not line:
             continue
         parts = line.split()
-        if len(parts) < 2:
+        if len(parts) == 2:
+            try:
+                a = int(parts[0])
+                b = int(parts[1])
+            except ValueError:
+                continue
+        elif len(parts) >= 4:
+            try:
+                la1, lo1 = float(parts[0]), float(parts[1])
+                la2, lo2 = float(parts[2]), float(parts[3])
+                si1, sj1 = snap_to_grid(la1, lo1)
+                si2, sj2 = snap_to_grid(la2, lo2)
+                a = GRID_TO_ID.get((si1, sj1))
+                b = GRID_TO_ID.get((si2, sj2))
+                if a is None or b is None:
+                    continue
+            except ValueError:
+                continue
+        else:
             continue
-        a = int(parts[0])
-        b = int(parts[1])
+
         if a < 1 or a > 10000 or b < 1 or b > 10000:
             continue
         lat_a = LOC_LAT[a]

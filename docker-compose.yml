@@ -1,0 +1,53 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: csdlab7-proximity-api:latest
+    container_name: proximity-api
+    restart: unless-stopped
+    environment:
+      - PORT=5000
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./locations.csv:/app/locations.csv:ro
+      - api-logs:/app/logs
+    networks:
+      - proximity-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.proxy
+    image: csdlab7-proximity-proxy:latest
+    container_name: proximity-proxy
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - proximity-net
+    volumes:
+      - proxy-logs:/var/log/nginx
+
+networks:
+  proximity-net:
+    driver: bridge
+    name: proximity-net
+
+volumes:
+  api-logs:
+    name: proximity-api-logs
+  proxy-logs:
+    name: proximity-proxy-logs
